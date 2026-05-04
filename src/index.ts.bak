@@ -1,0 +1,334 @@
+/**
+ * OpenRouter TypeScript CLI
+ * ------------------------------------------------------------
+ * ไฟล์นี้เป็นตัวอย่างโปรแกรม CLI แบบง่าย
+ * ใช้สำหรับรับข้อความจากผู้ใช้ผ่าน Terminal
+ * แล้วส่งคำถามไปยัง OpenRouter API
+ * จากนั้นนำคำตอบจาก AI มาแสดงผลกลับใน Terminal
+ *
+ * เทคโนโลยีที่ใช้:
+ * - TypeScript
+ * - Node.js
+ * - dotenv
+ * - readline/promises
+ * - OpenRouter REST API
+ */
+
+/**
+ * โหลดค่าจากไฟล์ .env เข้าสู่ process.env
+ *
+ * ตัวอย่างไฟล์ .env:
+ * OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxx
+ *
+ * หมายเหตุ:
+ * - ต้องมีไฟล์ .env อยู่ที่ root ของ project
+ * - ห้ามนำ API Key ไปใส่ใน GitHub หรือแชร์สาธารณะ
+ */
+import "dotenv/config";
+
+/**
+ * createInterface ใช้สำหรับสร้างระบบรับ input จาก Terminal
+ * เวอร์ชันนี้ใช้ node:readline/promises
+ * ทำให้สามารถใช้ await กับ rl.question() ได้
+ */
+import { createInterface } from "node:readline/promises";
+
+/**
+ * stdin  = ช่องทางรับข้อมูลจากผู้ใช้ เช่น การพิมพ์ใน Terminal
+ * stdout = ช่องทางแสดงผลกลับไปยัง Terminal
+ */
+import { stdin as input, stdout as output } from "node:process";
+
+/**
+ * อ่านค่า API Key จาก environment variable
+ * ซึ่งถูกโหลดมาจากไฟล์ .env ด้วย dotenv/config
+ */
+const apiKey = process.env.OPENROUTER_API_KEY;
+
+/**
+ * ตรวจสอบว่ามี API Key หรือไม่
+ * หากไม่มี ให้หยุดโปรแกรมทันที พร้อมแจ้ง error ที่เข้าใจง่าย
+ */
+if (!apiKey) {
+  throw new Error("Missing OPENROUTER_API_KEY in .env");
+}
+
+/**
+ * กำหนด type ของ message ที่จะส่งไปยัง OpenRouter
+ *
+ * role มีได้ 3 แบบหลัก:
+ * - system    = คำสั่งกำหนดพฤติกรรมของ AI
+ * - user      = ข้อความจากผู้ใช้
+ * - assistant = ข้อความตอบกลับจาก AI
+ *
+ * ในตัวอย่างนี้ เราส่งเฉพาะ system และ user
+ */
+type OpenRouterMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+/**
+ * กำหนด type ของ response ที่คาดว่าจะได้รับจาก OpenRouter
+ *
+ * choices:
+ * - เป็น array ของคำตอบจากโมเดล
+ * - โดยทั่วไปคำตอบหลักจะอยู่ที่ choices[0].message.content
+ *
+ * error:
+ * - ใช้กรณี API ตอบกลับว่าเกิดข้อผิดพลาด
+ * - เช่น credit ไม่พอ, model ไม่พร้อมใช้งาน, API key ผิด
+ */
+type OpenRouterResponse = {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+  error?: {
+    message?: string;
+    code?: number;
+  };
+};
+
+/**
+ * ฟังก์ชัน askOpenRouter()
+ * ------------------------------------------------------------
+ * หน้าที่:
+ * 1. รับคำถามจากผู้ใช้เป็น string
+ * 2. สร้าง messages สำหรับส่งไปยัง AI
+ * 3. เรียก OpenRouter API ผ่าน fetch()
+ * 4. ตรวจสอบ error
+ * 5. คืนค่าคำตอบกลับเป็น string
+ *
+ * @param userInput ข้อความคำถามจากผู้ใช้
+ * @returns คำตอบจาก AI หรือข้อความ error
+ */
+async function askOpenRouter(userInput: string): Promise<string> {
+  /**
+   * สร้างรายการข้อความที่จะส่งไปยังโมเดล
+   *
+   * system message:
+   * - ใช้กำหนดบทบาท น้ำเสียง ภาษา และรูปแบบการตอบ
+   *
+   * user message:
+   * - คือคำถามจริงจากผู้ใช้
+   */
+  const messages: OpenRouterMessage[] = [
+    {
+      role: "system",
+      content:
+        "You are a helpful TypeScript assistant. Answer clearly, politely, and concisely in Thai."
+    },
+    {
+      role: "user",
+      content: userInput
+    }
+  ];
+
+  /**
+   * เรียก OpenRouter API ด้วย fetch()
+   *
+   * Endpoint:
+   * https://openrouter.ai/api/v1/chat/completions
+   *
+   * Method:
+   * POST เพราะเราส่งข้อมูล request body ไปยัง API
+   */
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+
+    /**
+     * headers คือข้อมูลประกอบ request
+     *
+     * Authorization:
+     * - ใช้ API Key สำหรับยืนยันตัวตน
+     *
+     * Content-Type:
+     * - บอก API ว่า body ที่ส่งไปเป็น JSON
+     *
+     * HTTP-Referer และ X-OpenRouter-Title:
+     * - เป็น metadata สำหรับ OpenRouter
+     * - ช่วยระบุว่า request มาจาก app/project อะไร
+     */
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "http://localhost",
+      "X-OpenRouter-Title": "TypeScript OpenRouter CLI"
+    },
+
+    /**
+     * body คือข้อมูลหลักที่ส่งไปยัง OpenRouter
+     *
+     * model:
+     * - ใช้ openrouter/free เพื่อทดลองเรียกโมเดลฟรี
+     *
+     * max_tokens:
+     * - จำกัดจำนวน token สูงสุดของคำตอบ
+     * - ช่วยควบคุม credit และลดโอกาสเกิด 402 Payment Required
+     *
+     * temperature:
+     * - ควบคุมความสร้างสรรค์ของคำตอบ
+     * - ค่าต่ำ เช่น 0.2 = ตอบตรงและนิ่ง
+     * - ค่าสูง เช่น 0.7 = ตอบยืดหยุ่นและเป็นธรรมชาติมากขึ้น
+     *
+     * messages:
+     * - รายการข้อความ system/user ที่สร้างไว้ด้านบน
+     */
+    body: JSON.stringify({
+      model: "openrouter/free",
+      max_tokens: 500,
+      temperature: 0.7,
+      messages
+    })
+  });
+
+  /**
+   * แปลง response body จาก JSON เป็น object
+   * แล้วกำหนด type เป็น OpenRouterResponse
+   */
+  const data = (await response.json()) as OpenRouterResponse;
+
+  /**
+   * ตรวจสอบว่า HTTP response สำเร็จหรือไม่
+   *
+   * response.ok จะเป็น true เมื่อ status อยู่ในช่วง 200-299
+   *
+   * ตัวอย่าง error ที่อาจเจอ:
+   * - 401 Unauthorized: API Key ไม่ถูกต้อง
+   * - 402 Payment Required: credit ไม่พอ
+   * - 429 Too Many Requests: เรียก API ถี่เกินไป
+   * - 500 Server Error: ฝั่ง provider หรือ OpenRouter มีปัญหา
+   */
+  if (!response.ok) {
+    return `OpenRouter API Error: ${data.error?.message ?? response.statusText}`;
+  }
+
+  /**
+   * ดึงคำตอบจาก response
+   *
+   * โครงสร้างทั่วไป:
+   * data.choices[0].message.content
+   *
+   * ใช้ optional chaining ?. เพื่อป้องกัน error
+   * หาก response ไม่มี field บางส่วน
+   */
+  return data.choices?.[0]?.message?.content ?? "ไม่พบคำตอบจากโมเดล";
+}
+
+/**
+ * ฟังก์ชัน main()
+ * ------------------------------------------------------------
+ * เป็นจุดเริ่มต้นหลักของโปรแกรม
+ *
+ * หน้าที่:
+ * 1. แสดงข้อความต้อนรับ
+ * 2. สร้าง readline interface
+ * 3. รับ input จากผู้ใช้แบบวนซ้ำ
+ * 4. ส่ง input ไปยัง askOpenRouter()
+ * 5. แสดงคำตอบ
+ * 6. ออกจากโปรแกรมเมื่อผู้ใช้พิมพ์ exit หรือ quit
+ */
+async function main(): Promise<void> {
+  /**
+   * แสดงข้อความเริ่มต้นให้ผู้ใช้ทราบวิธีใช้งาน
+   */
+  console.log("🚀 OpenRouter TypeScript CLI พร้อมใช้งานแล้ว");
+  console.log("พิมพ์คำถาม แล้วกด Enter");
+  console.log("พิมพ์ exit หรือ quit เพื่อออกจากโปรแกรม\n");
+
+  /**
+   * สร้าง readline interface
+   *
+   * input  = รับข้อมูลจาก keyboard
+   * output = แสดง prompt และข้อความใน Terminal
+   */
+  const rl = createInterface({ input, output });
+
+  /**
+   * ใช้ while (true) เพื่อให้โปรแกรมถาม-ตอบต่อเนื่อง
+   * จนกว่าผู้ใช้จะพิมพ์ exit หรือ quit
+   */
+  while (true) {
+    /**
+     * แสดง prompt แล้วรอรับข้อความจากผู้ใช้
+     * await ทำให้โปรแกรมรอจนกว่าผู้ใช้จะกด Enter
+     */
+    const userInput = await rl.question("💬 พิมพ์คำถามของคุณ: ");
+
+    /**
+     * trim() ใช้ตัดช่องว่างหัวท้าย
+     * เช่น "  hello  " จะกลายเป็น "hello"
+     */
+    const trimmedInput = userInput.trim();
+
+    /**
+     * หากผู้ใช้กด Enter โดยไม่พิมพ์ข้อความ
+     * ให้แจ้งเตือนและวนกลับไปรับคำถามใหม่
+     */
+    if (!trimmedInput) {
+      console.log("⚠️ กรุณาพิมพ์คำถามก่อนครับ\n");
+      continue;
+    }
+
+    /**
+     * แปลงข้อความเป็นตัวพิมพ์เล็ก
+     * เพื่อให้รองรับทั้ง exit, EXIT, Quit, QUIT
+     */
+    const command = trimmedInput.toLowerCase();
+
+    /**
+     * ตรวจคำสั่งออกจากโปรแกรม
+     */
+    if (command === "exit" || command === "quit") {
+      console.log("\n👋 ปิดโปรแกรมแล้วครับ");
+      break;
+    }
+
+    /**
+     * แจ้งสถานะว่ากำลังส่งคำถามไปยัง API
+     */
+    console.log("\n📡 กำลังส่งคำถามไปยัง OpenRouter...\n");
+
+    /**
+     * ส่งคำถามไปยัง OpenRouter
+     * แล้วรอรับคำตอบกลับมา
+     */
+    const answer = await askOpenRouter(trimmedInput);
+
+    /**
+     * แสดงคำตอบจาก AI
+     */
+    console.log("✅ คำตอบ:");
+    console.log(answer);
+
+    /**
+     * เส้นคั่นเพื่อให้อ่าน output รอบถัดไปง่ายขึ้น
+     */
+    console.log("\n----------------------------------------\n");
+  }
+
+  /**
+   * ปิด readline interface
+   * เพื่อคืน resource ให้ระบบ
+   */
+  rl.close();
+}
+
+/**
+ * เรียกใช้งาน main()
+ *
+ * ใช้ void เพื่อบอก TypeScript ว่าเราตั้งใจไม่ await ตรงนี้
+ * แต่จะจัดการ error ด้วย .catch() แทน
+ *
+ * catch:
+ * - ดัก error ที่เกิดขึ้นระหว่าง runtime
+ * - แสดง error ใน Terminal
+ * - ตั้ง process.exitCode = 1 เพื่อบอกระบบว่าโปรแกรมจบแบบมีปัญหา
+ */
+void main().catch((error: unknown) => {
+  console.error("❌ Runtime error:");
+  console.error(error);
+  process.exitCode = 1;
+});

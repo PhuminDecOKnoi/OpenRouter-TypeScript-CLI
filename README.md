@@ -1,45 +1,62 @@
-# OpenRouter TypeScript CLI
+# OpenRouter TypeScript Starter
 
-โปรเจกต์ตัวอย่างสำหรับสร้าง CLI ด้วย **TypeScript + Node.js** เพื่อรับคำถามจากผู้ใช้ ส่งคำถามไปยัง **OpenRouter API** และแสดงผลลัพธ์กลับมาพร้อมข้อมูลสถานะ เช่น model, provider, response status และแหล่งที่มาของคำตอบ
+A professional TypeScript CLI starter project for connecting to the OpenRouter API.
+
+โปรเจกต์ตัวอย่างสำหรับเรียนรู้และพัฒนา AI CLI Application ด้วย **TypeScript + Node.js + OpenRouter API** โดยรองรับการรับคำถามจาก Terminal, ส่งคำถามไปยัง OpenRouter, แสดงคำตอบจาก AI, แสดงสถานะ API response และแสดงข้อมูลแหล่งที่มาของคำตอบในรูปแบบที่ตรวจสอบได้มากขึ้น
 
 ---
 
-## วัตถุประสงค์ของโปรเจกต์
+## Overview
 
-โปรเจกต์นี้ออกแบบมาเพื่อใช้เป็นพื้นฐานในการเรียนรู้และพัฒนา CLI ที่สามารถเชื่อมต่อกับ LLM API ได้อย่างเป็นระบบ
+This project demonstrates how to build a simple but structured AI command-line interface using TypeScript and OpenRouter.
 
-ความสามารถหลัก:
+It is designed for:
 
-1. รับคำถามจากผู้ใช้ผ่าน Terminal
-2. ส่งคำถามไปยัง OpenRouter API
-3. แสดงสถานะการเรียก API
-4. แสดงคำตอบจาก Model
-5. แสดงข้อมูล Model / Provider ที่ใช้ตอบ
-6. รองรับการแนบแหล่งที่มาของคำตอบ เช่น link, institution, document, person หรือ source อื่น ๆ
-7. ใช้ `.env` เพื่อเก็บ API Key อย่างปลอดภัย
+- Learning TypeScript with real API integration
+- Building an AI CLI assistant
+- Testing OpenRouter models
+- Practicing API response handling
+- Preparing a foundation for future AI Agent development
+
+---
+
+## Features
+
+- TypeScript-based CLI application
+- Load API Key securely from `.env`
+- Send user input to OpenRouter Chat Completions API
+- Display AI-generated answers in Terminal
+- Show OpenRouter API response status
+- Show response time, model, finish reason, and token usage
+- Show API source and model source
+- Ask AI to return answer sources such as link, institution, person, book, paper, or law
+- Basic error handling for API errors
+- Safe GitHub-ready project structure
 
 ---
 
 ## Tech Stack
 
-| รายการ | ใช้สำหรับ |
+| Layer | Technology |
 |---|---|
-| Node.js | Runtime สำหรับรันโปรแกรม |
-| TypeScript | เขียนโค้ดแบบ type-safe |
-| tsx | รัน TypeScript โดยไม่ต้อง build ก่อน |
-| dotenv | โหลดค่า environment variables จาก `.env` |
-| OpenRouter API | เชื่อมต่อกับ LLM models |
+| Language | TypeScript |
+| Runtime | Node.js |
+| Package Manager | npm |
+| Environment Variables | dotenv |
+| CLI Input | node:readline/promises |
+| AI Gateway | OpenRouter API |
 
 ---
 
 ## Project Structure
 
 ```text
-OpenRouter-TypeScript-CLI/
-├── src/
-│   └── index.ts
-├── .env.example
-├── .gitignore
-├── package.json
-├── tsconfig.json
-└── README.md
+openrouter-ts-starter/
+├─ src/
+│  └─ index.ts
+├─ .env.example
+├─ .gitignore
+├─ package.json
+├─ package-lock.json
+├─ tsconfig.json
+└─ README.md
